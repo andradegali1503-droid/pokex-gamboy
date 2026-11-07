@@ -1,52 +1,827 @@
-<div class="nav-container row align-items-center bg-dark text-white p-3">
-  <div class="col-auto">
-    <img class="nav-img" src="https://img.icons8.com/?size=100&id=iblgOKxLVFHU&format=png&color=000000" alt="logo">
-  </div>
-  <div class="col">
-    <h1 class="m-0"><img class="img-title" src="https://archives.bulbagarden.net/media/upload/4/4b/Pok%C3%A9dex_logo.png" alt="">
-    </h1>
-  </div>
-  <div class="col-auto d-flex text-center align-items-center">
-    <img class="list-icon" src="https://img.icons8.com/?size=100&id=36315&format=png&color=000000" alt="">
-    <h5>{{ pokemonList.length }}</h5>
-  </div>
-  <div class="col-auto">
-    <input type="text" class="form-control" placeholder="Buscar nombre o número" (input)="searchPokemon($event)">
-  </div>
-</div>
-
-<div class="pokedex-container row mt-4 position-relative">
-  <div class="img-container col-lg-8 mb-4 mb-lg-0">
-    <div class="pokemon-img bg-white p-4 rounded shadow text-center position-relative" [ngClass]="{'fade-out': !selectedPokemon}">
-      <div class="resultado" *ngIf="selectedPokemon && selectedPokemon.sprite">
-        <img class="sprites mb-4" [src]="selectedPokemon.sprite" alt="{{ selectedPokemon.name }}">
-        <p class="resultado-name mb-1 position-absolute top-0 start-0"><strong>{{ selectedPokemon.name }}</strong></p>
-        <p class="resultado-id mb-1 position-absolute top-0 end-0">ID: #{{ selectedPokemon.id }}</p>
-        <p class="resultado-altura mb-1">Height: {{ selectedPokemon.height }} Mts</p>
-        <p class="resultado-peso mb-1">Weight: {{ selectedPokemon.weight }} Kg</p>
-        <div *ngFor="let type of selectedPokemon.types" [ngClass]="type | lowercase" class="badge me-1">{{ type }}</div>
-      </div>
-      <div class="overlay"></div> <!-- Agregamos un overlay para la animación -->
+<div class="emerald-pokedex-app" [class.maximized-mode]="isMaximizedLcd">
+  <!-- TOP HARDWARE STATUS BAR -->
+  <header class="gba-top-deck">
+    <div class="deck-left">
+      <span class="power-led" [class.led-search]="isSearchResultsMode"></span>
+      <span class="deck-brand">GAME BOY ADVANCE</span>
+      <span class="deck-mode-pill" (click)="toggleDexMode()" title="Switch Hoenn / National Mode (R)">
+        {{ dexMode === 'HOENN' ? 'HOENN DEX (202)' : 'NATIONAL DEX (386)' }}
+      </span>
+      <span class="deck-order-pill" (click)="cycleDexOrder()" title="Change Sort Order">
+        ORDER: {{ dexOrder }}
+      </span>
     </div>
-  </div>
-  
-  <div class="aside col-lg-4">
-    <ul class="list-group pokemon-list">
-      <!-- Aplicación de la animación a cada elemento de la lista -->
-      <li *ngFor="let pokemon of pokemonList"
-          (click)="selectPokemon(pokemon.name)"
-          [class.active]="selectedPokemon && selectedPokemon.name === pokemon.name"
-          class="list-group-item d-flex align-items-center animate__animated"
-          [ngClass]="{'animate__bounceInLeft': selectedPokemon && selectedPokemon.name === pokemon.name}">
-        <img [src]="pokemon.sprite" alt="{{ pokemon.name }}" class="sprite-icon me-3">
-        <div>
-          <span class="pokemon-name d-block"><strong>{{ pokemon.name }}</strong></span>
-          <span class="pokemon-id text-muted">#{{ pokemon.id }}</span>
-          <div class="pokemon-types mt-2">
-            <span *ngFor="let type of getPokemonTypes(pokemon.types)" class="badge bg-secondary me-1">{{ type }}</span>
-          </div>
+
+    <div class="deck-right">
+      <button
+        type="button"
+        class="deck-btn"
+        *ngIf="selectedPokemon"
+        (click)="toggleCurrentPokemonStatus()"
+        title="Cycle Caught / Seen / Unseen (L)"
+      >
+        STATUS:
+        <strong [class.txt-caught]="selectedPokemon.caught" [class.txt-unseen]="!selectedPokemon.seen">
+          {{ selectedPokemon.caught ? 'CAUGHT ●' : (selectedPokemon.seen ? 'SEEN ○' : 'UNSEEN -') }}
+        </strong>
+      </button>
+
+      <button type="button" class="deck-btn" (click)="openSearchScreen()" title="Open GBA Search Screen (SELECT / F)">
+        SEARCH [SELECT]
+      </button>
+
+      <button type="button" class="deck-btn" (click)="isMaximizedLcd = !isMaximizedLcd">
+        {{ isMaximizedLcd ? 'GBA SHELL' : 'ZOOM LCD' }}
+      </button>
+
+      <button type="button" class="deck-btn" (click)="audio.toggleMute()">
+        {{ audio.isMuted ? 'MUTE: ON' : 'SFX: ON' }}
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN GBA CONSOLE BODY -->
+  <div class="gba-console-chassis">
+    <!-- LEFT PHYSICAL CONTROLS (L + D-PAD + SELECT) -->
+    <aside class="gba-wing gba-wing-left" *ngIf="!isMaximizedLcd">
+      <button
+        type="button"
+        class="gba-trigger-btn"
+        (click)="toggleCurrentPokemonStatus()"
+        title="Toggle Seen/Caught Status (Key: L)"
+      >
+        L <span class="trigger-sub">CAUGHT</span>
+      </button>
+
+      <div class="gba-dpad-pad" role="group" aria-label="GBA D-Pad">
+        <button type="button" class="dpad-arm arm-up" (click)="pressDpadUp()" title="Up (W / ArrowUp)">▲</button>
+        <button type="button" class="dpad-arm arm-left" (click)="pressDpadLeft()" title="Left / Page -7 (A / ArrowLeft)">◀</button>
+        <div class="dpad-hub"></div>
+        <button type="button" class="dpad-arm arm-right" (click)="pressDpadRight()" title="Right / Page +7 (D / ArrowRight)">▶</button>
+        <button type="button" class="dpad-arm arm-down" (click)="pressDpadDown()" title="Down (S / ArrowDown)">▼</button>
+      </div>
+
+      <div class="gba-meta-buttons">
+        <div class="meta-btn-unit">
+          <button type="button" class="rubber-pill-btn" (click)="pressButtonSelect()" title="Search Menu (Tab / F)">
+            SELECT
+          </button>
+          <span class="meta-caption">SEARCH</span>
         </div>
-      </li>
-    </ul>
+        <div class="meta-btn-unit">
+          <button type="button" class="rubber-pill-btn" (click)="pressButtonStart()" title="Start Menu (Shift / M)">
+            START
+          </button>
+          <span class="meta-caption">MENU</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER 240×160 (3:2) AUTHENTIC GBA LCD VIEWPORT -->
+    <main class="gba-screen-bezel">
+      <div
+        class="gba-lcd-viewport"
+        [class.palette-fading]="isScreenFading"
+        (wheel)="onListWheel($event)"
+      >
+        <!-- ================================================================
+             SCREEN 1: POKéDEX LIST VIEW (PAGE_MAIN & PAGE_SEARCH_RESULTS)
+             Exact pret/pokeemerald tilemap: bg_list_hoenn / national / search
+             ================================================================ -->
+        <section class="dex-screen screen-list" *ngIf="currentScreen === 'LIST'">
+          <img
+            [src]="listBackgroundAsset"
+            alt="Pokémon Emerald Pokédex List Background"
+            class="tilemap-bg"
+          />
+
+          <!-- Far-Left Rotating Poké Ball Wheel Spoken Cutout (x: 0, y: 80) -->
+          <div class="pokeball-wheel-clip" aria-hidden="true">
+            <div
+              class="pokeball-wheel-spoke"
+              [class.spoke-national]="dexMode === 'NATIONAL' && !isSearchResultsMode"
+              [class.spoke-search]="isSearchResultsMode"
+              [style.transform]="'translate(-50%, -50%) rotate(' + pokeBallRotationDeg + 'deg)'"
+            ></div>
+            <div class="pokeball-wheel-hub"></div>
+          </div>
+
+          <!-- Left Column: SEEN & OWN Counters (x: 6..62, y: 30..104) -->
+          <div class="list-seen-own-panel">
+            <div class="seen-own-block">
+              <div class="seen-own-header">SEEN</div>
+              <div class="seen-own-row">
+                <span class="region-tag">HOENN</span>
+                <span class="count-digits">{{ counts.hoennSeen | number:'3.0-0' }}</span>
+              </div>
+              <div class="seen-own-row" *ngIf="dexMode === 'NATIONAL'">
+                <span class="region-tag">NAT</span>
+                <span class="count-digits nat-digits">{{ counts.nationalSeen | number:'3.0-0' }}</span>
+              </div>
+            </div>
+
+            <div class="seen-own-block">
+              <div class="seen-own-header">OWN</div>
+              <div class="seen-own-row">
+                <span class="region-tag">HOENN</span>
+                <span class="count-digits">{{ counts.hoennOwn | number:'3.0-0' }}</span>
+              </div>
+              <div class="seen-own-row" *ngIf="dexMode === 'NATIONAL'">
+                <span class="region-tag">NAT</span>
+                <span class="count-digits nat-digits">{{ counts.nationalOwn | number:'3.0-0' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom-Left: Interactive [START] MENU & [SELECT] SEARCH Pills -->
+          <div class="list-bottom-left-controls">
+            <button type="button" class="gba-ui-cmd" (click)="toggleStartMenu()">
+              <span class="magenta-pill-tag">START<i class="pill-dot"></i></span>
+              <span class="cmd-white-label">MENU</span>
+            </button>
+            <button type="button" class="gba-ui-cmd" (click)="openSearchScreen()">
+              <span class="magenta-pill-tag">SELECT<i class="pill-dot"></i></span>
+              <span class="cmd-white-label">SEARCH</span>
+            </button>
+          </div>
+
+          <!-- Center Cylindrical 3-Sprite Drum (x: 64..126, y: 24..136) -->
+          <div
+            class="sprite-drum-viewport"
+            [ngClass]="scrollDirectionClass"
+            (click)="openInfoScreen()"
+            title="Click or press A to open Pokémon Entry"
+          >
+            <!-- Top Foreshortened Sprite (selectedIndex - 1) -->
+            <div class="drum-slot drum-top" *ngIf="prevDrumPokemon as prevMon">
+              <img
+                *ngIf="prevMon.seen"
+                [src]="prevMon.sprite"
+                [alt]="prevMon.name"
+                (error)="onSpriteError($event, prevMon)"
+                class="drum-sprite-foreshortened"
+              />
+            </div>
+
+            <!-- Center Active 1:1 Sprite (selectedIndex) -->
+            <div class="drum-slot drum-center" *ngIf="selectedPokemon as curMon">
+              <img
+                *ngIf="curMon.seen"
+                [src]="showShinySprite ? curMon.shinySprite : curMon.sprite"
+                [alt]="curMon.name"
+                (error)="onSpriteError($event, curMon)"
+                class="drum-sprite-main"
+              />
+              <div *ngIf="!curMon.seen" class="unseen-drum-emblem">?</div>
+            </div>
+
+            <!-- Bottom Foreshortened Sprite (selectedIndex + 1) -->
+            <div class="drum-slot drum-bottom" *ngIf="nextDrumPokemon as nextMon">
+              <img
+                *ngIf="nextMon.seen"
+                [src]="nextMon.sprite"
+                [alt]="nextMon.name"
+                (error)="onSpriteError($event, nextMon)"
+                class="drum-sprite-foreshortened"
+              />
+            </div>
+          </div>
+
+          <!-- Bouncing Top & Bottom Scroll Arrows (x: 184, y: 4 & y: 156) -->
+          <button
+            type="button"
+            class="dex-scroll-arrow arrow-top"
+            *ngIf="selectedIndex > 0"
+            (click)="scrollList(-1)"
+            aria-label="Scroll Up"
+          >
+            <svg viewBox="0 0 16 10" class="pixel-arrow-svg">
+              <path d="M7 0h2v2h2v2h2v2h2v2H1V6h2V4h2V2h2V0z" fill="#000000"/>
+              <path d="M7 2h2v2h2v2h2v1H3V6h2V4h2V2z" fill="#ff5a00"/>
+              <path d="M7 3h2v2h2v1H5V5h2V3z" fill="#eef639"/>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="dex-scroll-arrow arrow-bottom"
+            *ngIf="selectedIndex < filteredPokemonList.length - 1"
+            (click)="scrollList(1)"
+            aria-label="Scroll Down"
+          >
+            <svg viewBox="0 0 16 10" class="pixel-arrow-svg">
+              <path d="M1 2h14v2h-2v2h-2v2H9v2H7V8H5V6H3V4H1V2z" fill="#000000"/>
+              <path d="M3 3h10v1h-2v2H9v2H7V6H5V4H3V3z" fill="#ff5a00"/>
+              <path d="M5 4h6v1H9v2H7V5H5V4z" fill="#eef639"/>
+            </svg>
+          </button>
+
+          <!-- Right Yellow List Panel: 9 Visible Scrolling Rows (x: 138..226, y: 14..146) -->
+          <ul class="dex-yellow-list" role="listbox" aria-label="Pokémon List">
+            <li
+              *ngFor="let row of visibleRows"
+              class="dex-list-row"
+              [class.row-selected]="row.offset === 0"
+              [class.row-empty]="!row.pokemon"
+              (click)="onRowClick(row)"
+            >
+              <ng-container *ngIf="row.pokemon as mon">
+                <span class="row-dex-no">
+                  <small class="no-prefix">No</small>{{ mon.dexNumberFormatted }}
+                </span>
+                <span class="row-ball-slot">
+                  <img
+                    *ngIf="mon.caught"
+                    src="assets/emerald/caught_ball.png"
+                    alt="Caught"
+                    class="row-caught-ball"
+                  />
+                </span>
+                <span class="row-mon-name">
+                  {{ mon.seen ? mon.name : '----------' }}
+                </span>
+              </ng-container>
+            </li>
+
+            <!-- Empty Search Results Message -->
+            <li *ngIf="filteredPokemonList.length === 0" class="dex-no-matches">
+              NO POKéMON FOUND
+              <button type="button" class="reset-inline-btn" (click)="resetSearchFilters()">
+                RESET [B]
+              </button>
+            </li>
+          </ul>
+
+          <!-- Far-Right Scrollbar Thumb (x: 230, y: 20..140) -->
+          <div
+            class="dex-scrollbar-thumb"
+            [style.top.%]="scrollbarThumbTopPercent"
+          ></div>
+
+          <!-- START MENU DRAWER OVERLAY (start_menu_main.bin) -->
+          <div class="dex-start-menu-drawer" *ngIf="isStartMenuOpen">
+            <div class="start-menu-header">POKéDEX MENU</div>
+            <ul class="start-menu-list">
+              <li
+                *ngFor="let opt of startMenuOptions; let i = index"
+                class="start-menu-item"
+                [class.menu-item-active]="startMenuCursor === i"
+                (click)="selectStartMenuOption(i)"
+              >
+                <span class="menu-cursor-arrow">{{ startMenuCursor === i ? '▶' : '' }}</span>
+                <span>{{ opt }}</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             SCREEN 2: INDIVIDUAL POKéMON ENTRY (PAGE_INFO)
+             Exact pret/pokeemerald tilemap: bg_info_screen.png
+             ================================================================ -->
+        <section class="dex-screen screen-info" *ngIf="currentScreen === 'INFO' && selectedPokemon as mon">
+          <img
+            src="assets/emerald/bg_info_screen.png"
+            alt="Pokémon Emerald Info Screen"
+            class="tilemap-bg"
+          />
+
+          <!-- Top Navigation Bar: AREA | CRY | SIZE | CANCEL (y: 0..16) -->
+          <nav class="info-top-tabs" aria-label="Entry Sub-Screens">
+            <button
+              type="button"
+              class="info-tab-hotspot tab-area"
+              [class.tab-focused]="infoTabIndex === 0"
+              (click)="onInfoTabClick(0)"
+            >AREA</button>
+            <button
+              type="button"
+              class="info-tab-hotspot tab-cry"
+              [class.tab-focused]="infoTabIndex === 1"
+              (click)="onInfoTabClick(1)"
+            >CRY</button>
+            <button
+              type="button"
+              class="info-tab-hotspot tab-size"
+              [class.tab-focused]="infoTabIndex === 2"
+              (click)="onInfoTabClick(2)"
+            >SIZE</button>
+            <button
+              type="button"
+              class="info-tab-hotspot tab-cancel"
+              [class.tab-focused]="infoTabIndex === 3"
+              (click)="onInfoTabClick(3)"
+            >CANCEL</button>
+          </nav>
+
+          <!-- Upper-Left 64×64 Sprite Frame (x: 16..88, y: 24..88) -->
+          <div class="info-sprite-box" (click)="triggerPokemonCry()" title="Click to hear Cry">
+            <img
+              [src]="showShinySprite ? mon.shinySprite : mon.sprite"
+              [alt]="mon.name"
+              (error)="onSpriteError($event, mon)"
+              class="info-main-sprite"
+            />
+            <button
+              type="button"
+              class="shiny-star-toggle"
+              [class.shiny-active]="showShinySprite"
+              (click)="$event.stopPropagation(); showShinySprite = !showShinySprite; audio.playSelect()"
+              title="Toggle Normal / Shiny Gen 3 Sprite"
+            >★</button>
+          </div>
+
+          <!-- Upper-Right Gray Header Strip (x: 88..216, y: 24..56) -->
+          <div class="info-header-banner">
+            <div class="info-title-line">
+              <span class="info-dex-num">No.{{ mon.dexNumberFormatted }}</span>
+              <img
+                *ngIf="mon.caught"
+                src="assets/emerald/caught_ball.png"
+                alt="Caught"
+                class="info-caught-icon"
+              />
+              <span class="info-mon-name">{{ mon.name }}</span>
+            </div>
+            <div class="info-category-line">
+              {{ mon.category }} POKéMON
+            </div>
+          </div>
+
+          <!-- Middle-Right HT & WT Underlines (x: 96..184, y: 58..86) -->
+          <div class="info-metrics-block" (click)="useMetricUnits = !useMetricUnits; audio.playSelect()" title="Click to toggle Metric / Imperial">
+            <div class="info-metric-row">
+              <span class="metric-label">HT</span>
+              <span class="metric-val">
+                {{ useMetricUnits ? mon.heightFormattedMetric : mon.heightFormattedImperial }}
+              </span>
+            </div>
+            <div class="info-metric-row">
+              <span class="metric-label">WT</span>
+              <span class="metric-val">
+                {{ useMetricUnits ? mon.weightFormattedMetric : mon.weightFormattedImperial }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Far-Right Footprint Circle (x: 196..220, y: 60..84) -->
+          <div class="info-footprint-circle" title="Pokémon Footprint">
+            <svg viewBox="0 0 16 16" class="pixel-footprint-svg">
+              <rect x="3" y="2" width="2" height="2" fill="#293941" />
+              <rect x="7" y="1" width="2" height="2" fill="#293941" />
+              <rect x="11" y="2" width="2" height="2" fill="#293941" />
+              <rect x="4" y="6" width="8" height="5" fill="#293941" />
+              <rect x="5" y="11" width="6" height="3" fill="#293941" />
+            </svg>
+          </div>
+
+          <!-- Lower Full-Width White Description & Evolution Box (x: 6..234, y: 96..158) -->
+          <div class="info-bottom-textbox">
+            <!-- Sub-Header Bar: Gen 3 Type Badges + Page Toggle -->
+            <div class="info-textbox-toolbar">
+              <div class="info-type-badges">
+                <span
+                  *ngFor="let t of mon.types"
+                  class="gba-type-badge"
+                  [ngClass]="'type-' + t.toLowerCase()"
+                >{{ t }}</span>
+              </div>
+
+              <div class="info-page-controls">
+                <button type="button" class="info-prev-next-btn" (click)="scrollList(-1)" title="Previous Pokémon (▲)">▲</button>
+                <button type="button" class="info-prev-next-btn" (click)="scrollList(1)" title="Next Pokémon (▼)">▼</button>
+                <button type="button" class="info-subpage-btn" (click)="toggleInfoSubPage()">
+                  {{ infoSubPage === 'DESCRIPTION' ? 'EVOS / STATS ▶' : '◀ DEX ENTRY' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Page 1: Verbatim Pokémon Emerald Pokédex Entry Text -->
+            <p class="info-dex-description" *ngIf="infoSubPage === 'DESCRIPTION'">
+              {{ mon.description }}
+            </p>
+
+            <!-- Page 2: Evolution Chain & Gen 3 Base Stats -->
+            <div class="info-evo-stats-view" *ngIf="infoSubPage === 'EVOLUTIONS'">
+              <div class="evo-chain-strip" *ngIf="mon.evolutions.length > 0; else noEvoTemplate">
+                <div
+                  *ngFor="let edge of mon.evolutions"
+                  class="evo-edge-chip"
+                >
+                  <button
+                    type="button"
+                    class="evo-mon-link"
+                    [class.evo-current]="edge.fromId === mon.nationalId"
+                    (click)="jumpToEvolution(edge.fromId)"
+                  >{{ edge.fromName }}</button>
+                  <span class="evo-trigger-tag">→ {{ edge.trigger }} →</span>
+                  <button
+                    type="button"
+                    class="evo-mon-link"
+                    [class.evo-current]="edge.toId === mon.nationalId"
+                    (click)="jumpToEvolution(edge.toId)"
+                  >{{ edge.toName }}</button>
+                </div>
+              </div>
+              <ng-template #noEvoTemplate>
+                <div class="no-evo-badge">NO EVOLUTION CHAIN RECORDED IN HOENN DATA</div>
+              </ng-template>
+
+              <div class="info-stats-mini" *ngIf="mon.stats as st">
+                <span>HP:{{ st.hp }}</span>
+                <span>ATK:{{ st.atk }}</span>
+                <span>DEF:{{ st.def }}</span>
+                <span>SPA:{{ st.spa }}</span>
+                <span>SPD:{{ st.spd }}</span>
+                <span>SPE:{{ st.spe }}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             SCREEN 3: HOENN AREA / HABITAT MAP (bg_area_screen.png)
+             ================================================================ -->
+        <section class="dex-screen screen-area" *ngIf="currentScreen === 'AREA' && selectedPokemon as mon">
+          <img
+            src="assets/emerald/bg_area_screen.png"
+            alt="Hoenn Region Map"
+            class="tilemap-bg"
+          />
+
+          <!-- Top Sub-Screen Bar: AREA (Active) | CRY | SIZE | (B) CANCEL -->
+          <nav class="info-top-tabs">
+            <button type="button" class="info-tab-hotspot tab-area tab-focused" (click)="switchScreen('AREA')">AREA</button>
+            <button type="button" class="info-tab-hotspot tab-cry" (click)="switchScreen('CRY')">CRY</button>
+            <button type="button" class="info-tab-hotspot tab-size" (click)="switchScreen('SIZE')">SIZE</button>
+            <button type="button" class="info-tab-hotspot tab-cancel" (click)="switchScreen('INFO', 'CANCEL')">CANCEL</button>
+          </nav>
+
+          <!-- Glowing Wild Encounter Route Highlights on the Hoenn Map -->
+          <div class="hoenn-map-overlay">
+            <div
+              *ngFor="let pt of activeMapPoints"
+              class="area-glow-marker"
+              [class.dungeon-marker]="pt.isDungeon"
+              [style.left.%]="pt.xPercent"
+              [style.top.%]="pt.yPercent"
+              [style.width.%]="pt.widthPercent"
+              [style.height.%]="pt.heightPercent"
+              [title]="pt.name"
+            ></div>
+
+            <!-- AREA UNKNOWN Banner if species does not spawn in the wild -->
+            <div class="area-unknown-banner" *ngIf="mon.areas.length === 0">
+              <div class="area-unknown-title">AREA UNKNOWN</div>
+              <div class="area-unknown-sub">
+                {{ mon.evolutions.length > 0 ? 'OBTAIN VIA EVOLUTION / SPECIAL EVENT' : 'SPECIAL / NON-WILD HOENN SPECIES' }}
+              </div>
+            </div>
+
+            <!-- Bottom Habitat HUD Strip -->
+            <div class="area-hud-footer">
+              <span class="area-mon-tag">No.{{ mon.dexNumberFormatted }} {{ mon.name }}</span>
+              <span class="area-routes-list" *ngIf="mon.areas.length > 0">
+                HABITAT: {{ mon.areas.join(' • ') }}
+              </span>
+              <span class="area-routes-list" *ngIf="mon.areas.length === 0">
+                HABITAT: NONE IN WILD
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             SCREEN 4: CRY OSCILLOSCOPE & VU METER (bg_cry_screen.png)
+             ================================================================ -->
+        <section class="dex-screen screen-cry" *ngIf="currentScreen === 'CRY' && selectedPokemon as mon">
+          <img
+            src="assets/emerald/bg_cry_screen.png"
+            alt="Pokémon Emerald Cry Screen"
+            class="tilemap-bg"
+          />
+
+          <!-- Top Sub-Screen Bar -->
+          <nav class="info-top-tabs">
+            <button type="button" class="info-tab-hotspot tab-area" (click)="switchScreen('AREA')">AREA</button>
+            <button type="button" class="info-tab-hotspot tab-cry tab-focused" (click)="triggerPokemonCry()">CRY</button>
+            <button type="button" class="info-tab-hotspot tab-size" (click)="switchScreen('SIZE')">SIZE</button>
+            <button type="button" class="info-tab-hotspot tab-cancel" (click)="switchScreen('INFO', 'CANCEL')">CANCEL</button>
+          </nav>
+
+          <!-- Left 64×64 Sprite Box (x: 16..80, y: 24..88) -->
+          <div class="cry-sprite-box" (click)="triggerPokemonCry()">
+            <img
+              [src]="mon.sprite"
+              [alt]="mon.name"
+              (error)="onSpriteError($event, mon)"
+              class="cry-mon-sprite"
+              [class.cry-sprite-active]="isPlayingCry"
+            />
+          </div>
+
+          <!-- Top-Center "CRY OF" + Species Name (pokedex.c lines 3571-3572: x=82, y=33 & y=49) -->
+          <div class="cry-center-title" (click)="triggerPokemonCry()">
+            <div class="cry-of-label">CRY OF</div>
+            <div class="cry-species-name">{{ mon.name }}</div>
+          </div>
+
+          <!-- Center Play Button Hotspot over [ (A) ▶ ] (x: 88..136, y: 72..88) -->
+          <button
+            type="button"
+            class="cry-play-hotspot"
+            (click)="triggerPokemonCry()"
+            title="Play Pokémon Cry (A)"
+          ></button>
+
+          <!-- Top-Right VU Meter Window (pokedex.c line 3602: xPos=18, yPos=3 -> x: 144..224, y: 24..88) -->
+          <div class="cry-vu-box" (click)="triggerPokemonCry()" title="VU Volume Meter">
+            <div class="vu-meter-widget">
+              <img src="assets/emerald/cry_meter.png" alt="VU Meter" class="vu-meter-bg" />
+              <div
+                class="vu-meter-needle"
+                [style.transform]="'translateX(-50%) rotate(' + vuNeedleRotationDeg + 'deg)'"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Bottom Full-Width Olive Oscilloscope Waveform Window (y: 96..152) -->
+          <div class="cry-bottom-deck" (click)="triggerPokemonCry()">
+            <div class="osc-status-bar">
+              <span class="osc-mon-id">No.{{ mon.dexNumberFormatted }} {{ mon.name }}</span>
+              <span class="osc-status-text">
+                {{ isPlayingCry ? '▶ PLAYING GEN III CRY WAVE...' : 'PRESS [A] OR CLICK PLAY FOR CRY' }}
+              </span>
+            </div>
+            <div class="osc-grid-bars">
+              <div
+                *ngFor="let sample of cryWaveform"
+                class="osc-sample-col"
+                [style.height.%]="14 + Math.abs(sample) * 84"
+                [class.osc-peak]="Math.abs(sample) > 0.65"
+              ></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             SCREEN 5: SIZE COMPARISON SCREEN (bg_size_screen.png)
+             ================================================================ -->
+        <section class="dex-screen screen-size" *ngIf="currentScreen === 'SIZE' && selectedPokemon as mon">
+          <img
+            src="assets/emerald/bg_size_screen.png"
+            alt="Pokémon Emerald Size Screen"
+            class="tilemap-bg"
+          />
+
+          <!-- Top Sub-Screen Bar -->
+          <nav class="info-top-tabs">
+            <button type="button" class="info-tab-hotspot tab-area" (click)="switchScreen('AREA')">AREA</button>
+            <button type="button" class="info-tab-hotspot tab-cry" (click)="switchScreen('CRY')">CRY</button>
+            <button type="button" class="info-tab-hotspot tab-size tab-focused" (click)="switchScreen('SIZE')">SIZE</button>
+            <button type="button" class="info-tab-hotspot tab-cancel" (click)="switchScreen('INFO', 'CANCEL')">CANCEL</button>
+          </nav>
+
+          <!-- Center Gray Silhouette Stage (x: 48..192, y: 24..88) -->
+          <div class="size-silhouette-stage">
+            <div class="silhouette-actor">
+              <img
+                [src]="mon.sprite"
+                [alt]="mon.name"
+                (error)="onSpriteError($event, mon)"
+                class="mon-silhouette-img"
+                [style.height.px]="sizeScreenPokemonHeightPx"
+              />
+              <span class="silhouette-tag">{{ mon.name }}</span>
+            </div>
+
+            <div class="silhouette-actor">
+              <img
+                src="assets/emerald/brendan_silhouette.png"
+                alt="Trainer Brendan"
+                class="trainer-silhouette-img"
+                [style.height.px]="sizeScreenTrainerHeightPx"
+              />
+              <span class="silhouette-tag">BRENDAN</span>
+            </div>
+          </div>
+
+          <!-- Bottom White Size Comparison Box (pokedex.c line 3762: "SIZE COMPARED TO BRENDAN") -->
+          <div class="size-comparison-box">
+            <div class="size-compared-banner">SIZE COMPARED TO BRENDAN</div>
+            <div class="size-comp-metrics">
+              <span class="size-metric-item">
+                <strong>{{ mon.name }}:</strong> {{ mon.heightFormattedMetric }} ({{ mon.heightFormattedImperial }}) / {{ mon.weightFormattedMetric }}
+              </span>
+              <span class="size-comp-divider">VS</span>
+              <span class="size-metric-item">
+                <strong>BRENDAN:</strong> 1.5 m (4'11") / 45.0 kg
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             SCREEN 6: SEARCH & FILTER MENU (bg_search_menu.png)
+             ================================================================ -->
+        <section class="dex-screen screen-search" *ngIf="currentScreen === 'SEARCH'">
+          <img
+            src="assets/emerald/bg_search_menu.png"
+            alt="Pokémon Emerald Search Menu"
+            class="tilemap-bg"
+          />
+
+          <!-- Top Bar Hotspots: SEARCH | SHIFT (Reset) | CANCEL -->
+          <div class="search-top-bar">
+            <button type="button" class="search-top-btn" (click)="executeSearchFromMenu()">SEARCH</button>
+            <button type="button" class="search-top-btn" (click)="resetSearchFilters()">SHIFT:CLEAR</button>
+            <button type="button" class="search-top-btn" (click)="switchScreen('LIST', 'CANCEL')">CANCEL</button>
+          </div>
+
+          <!-- Left Filter Rows Overlaid on the Gray Selector Boxes (x: 44..132, y: 16..108) -->
+          <div class="search-fields-column">
+            <!-- Row 0: NAME -->
+            <div
+              class="search-field-slot slot-name"
+              [class.slot-focused]="searchCursorRow === 0"
+              (click)="searchCursorRow = 0"
+            >
+              <input
+                type="text"
+                class="gba-search-input"
+                placeholder="NAME / #ID..."
+                [value]="searchNameQuery"
+                (input)="searchPokemon($event)"
+              />
+            </div>
+
+            <!-- Row 1: COLOR -->
+            <div
+              class="search-field-slot slot-color"
+              [class.slot-focused]="searchCursorRow === 1"
+              (click)="cycleSearchField(1, 1)"
+            >
+              <span>{{ selectedColor === 'NONE' ? '----' : selectedColor }}</span>
+              <span class="slot-arrows">◀▶</span>
+            </div>
+
+            <!-- Row 2: TYPE 1 & TYPE 2 -->
+            <div class="search-field-dual slot-types" [class.slot-focused]="searchCursorRow === 2">
+              <button
+                type="button"
+                class="search-type-box"
+                (click)="cycleSearchField(2, 1)"
+              >
+                {{ selectedType1 === 'NONE' ? '----' : selectedType1 }}
+              </button>
+              <button
+                type="button"
+                class="search-type-box"
+                (click)="cycleType2(1)"
+              >
+                {{ selectedType2 === 'NONE' ? '----' : selectedType2 }}
+              </button>
+            </div>
+
+            <!-- Row 3: ORDER -->
+            <div
+              class="search-field-slot slot-order"
+              [class.slot-focused]="searchCursorRow === 3"
+              (click)="cycleSearchField(3, 1)"
+            >
+              <span>{{ dexOrder }}</span>
+              <span class="slot-arrows">◀▶</span>
+            </div>
+
+            <!-- Row 5: OK Button Hotspot (x: 4..38, y: 80..98) -->
+            <button
+              type="button"
+              class="search-ok-hotspot"
+              [class.slot-focused]="searchCursorRow === 5"
+              (click)="executeSearchFromMenu()"
+            >OK</button>
+          </div>
+
+          <!-- Right Emerald Panel (x: 138..236, y: 6..108): Mode Switch & Match Counter -->
+          <div class="search-right-summary">
+            <div class="summary-card">
+              <div class="summary-label">DEX MODE</div>
+              <button type="button" class="summary-mode-btn" (click)="cycleSearchField(4, 1)">
+                {{ dexMode }} DEX ◀▶
+              </button>
+            </div>
+
+            <div class="summary-card">
+              <div class="summary-label">MATCHING</div>
+              <div class="summary-count">{{ filteredPokemonList.length }} POKéMON</div>
+            </div>
+
+            <button type="button" class="summary-go-btn" (click)="executeSearchFromMenu()">
+              START SEARCH ▶
+            </button>
+          </div>
+
+          <!-- Bottom White Instruction Box (x: 6..234, y: 116..154) -->
+          <div class="search-bottom-dialog">
+            <span class="search-dialog-prompt">
+              Filter by NAME, COLOR, TYPE, or ORDER. Press OK or START to view results!
+            </span>
+            <button type="button" class="search-clear-btn" (click)="resetSearchFilters()">
+              CLEAR ALL
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- GBA Screen Bezel Logo & Quick Search Input -->
+      <div class="bezel-bottom-bar">
+        <div class="bezel-logo">
+          <span class="bezel-gba">GAME BOY</span>
+          <span class="bezel-adv">ADVANCE</span>
+        </div>
+
+        <div class="bezel-quick-search">
+          <input
+            type="text"
+            class="form-control bezel-search-input"
+            placeholder="Quick Search Name or #No..."
+            [value]="searchNameQuery"
+            (input)="searchPokemon($event)"
+          />
+          <button
+            type="button"
+            class="bezel-clear-x"
+            *ngIf="searchNameQuery || isSearchResultsMode"
+            (click)="resetSearchFilters()"
+            title="Clear Search"
+          >✕</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- RIGHT PHYSICAL CONTROLS (R + A/B CLUSTER) -->
+    <aside class="gba-wing gba-wing-right" *ngIf="!isMaximizedLcd">
+      <button
+        type="button"
+        class="gba-trigger-btn"
+        (click)="currentScreen === 'INFO' ? toggleInfoSubPage() : toggleDexMode()"
+        title="Switch Mode / Info Page (Key: R)"
+      >
+        R <span class="trigger-sub">{{ currentScreen === 'INFO' ? 'EVOS' : 'MODE' }}</span>
+      </button>
+
+      <div class="gba-ab-pad" role="group" aria-label="GBA A and B Buttons">
+        <div class="ab-unit unit-b">
+          <button type="button" class="action-round-btn btn-b" (click)="pressButtonB()" title="Back / Cancel (X / Esc)">
+            B
+          </button>
+          <span class="ab-caption">CANCEL</span>
+        </div>
+
+        <div class="ab-unit unit-a">
+          <button type="button" class="action-round-btn btn-a" (click)="pressButtonA()" title="Confirm / Entry (Z / Enter)">
+            A
+          </button>
+          <span class="ab-caption">CHECK</span>
+        </div>
+      </div>
+
+      <div class="gba-speaker-grille" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </aside>
   </div>
+
+  <!-- BOTTOM GEN III TYPE FILTER & SAVE TOOLS DOCK -->
+  <footer class="gba-type-filter-dock">
+    <div class="type-dock-header">
+      <span class="dock-title">GEN III TYPE FILTER:</span>
+      <div class="dock-actions">
+        <button
+          type="button"
+          class="dock-tool-btn"
+          [class.tool-active]="selectedType1 === 'NONE' && !isSearchResultsMode"
+          (click)="resetSearchFilters()"
+        >ALL ({{ pokemonList.length }})</button>
+        <button
+          type="button"
+          class="dock-tool-btn"
+          (click)="markAllCaught()"
+          title="Unlock all 386 Caught Poké Balls"
+        >CATCH ALL ★</button>
+      </div>
+    </div>
+
+    <div class="type-badges-strip">
+      <button
+        type="button"
+        *ngFor="let t of pokemonTypes.slice(1)"
+        class="gba-type-badge badge-clickable"
+        [ngClass]="'type-' + t.toLowerCase()"
+        [class.badge-selected]="selectedType1 === t"
+        (click)="filterByType(t)"
+      >
+        {{ t }}
+      </button>
+    </div>
+  </footer>
 </div>

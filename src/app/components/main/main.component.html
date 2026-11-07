@@ -1,33 +1,144 @@
-<div id="loading" *ngIf="isLoading">
-    <div class="spinner"></div>
-    <p>Cargando...</p>
-</div>
-
-<div class="principal" id="content" *ngIf="!isLoading">
-    <div class="second">
-        <div class="profesor">
-            <img src="profesor.png" alt="Profesor Pokémon">
-        </div>
-    
-        <div class="chat-bubble">
-            <h1>¡Hola a todos, entrenadores Pokémon!</h1>
-            <p>🌟✨ ¡Espero que estén teniendo un día lleno de aventuras y diversión! ✨🌟</p>
-            <p>
-                Quiero invitarles a sumergirse en el maravilloso mundo de los Pokémon. 
-                ¿Alguna vez se han preguntado cuál es su Pokémon favorito? 🤔 Ahora es el momento perfecto para descubrirlo. 
-                Les invito a buscar en la <strong>Pokédex</strong> y explorar la vasta diversidad de Pokémon que habitan en este increíble universo.
-            </p>
-            <p>
-                Desde los adorables y tiernos hasta los poderosos y majestuosos, hay un Pokémon para cada uno de nosotros. 
-                ¡Quién sabe, tal vez encuentren un nuevo compañero de equipo que nunca antes habían considerado! 🕵️‍♂️🔍
-            </p>
-            <p>
-                ¡Así que no esperen más! Tomen su <strong>Pokédex</strong>, ábranla y déjense sorprender por todas las increíbles criaturas que esperan ser descubiertas. 🌍🎮
-            </p>
-            <p>¡Que la suerte y la diversión los acompañen en esta emocionante búsqueda! ¡Atrápalos a todos!</p>
-            <p>Con cariño,<br>Profesor Oak</p>
-            
-            <button (click)="goToDashboard()">Ir al Dashboard</button>
-        </div>
+<div class="gba-intro-shell">
+  <!-- Top Console Header Banner -->
+  <header class="gba-console-topbar">
+    <div class="gba-led-group">
+      <span class="gba-power-led"></span>
+      <span class="gba-led-label">BATTERY</span>
     </div>
+    <div class="gba-cartridge-badge">
+      POKéMON EMERALD VERSION — AGB-BPEE-USA (2004)
+    </div>
+    <button type="button" class="gba-mute-btn" (click)="audio.toggleMute()">
+      {{ audio.isMuted ? 'SOUND: OFF' : 'SOUND: ON' }}
+    </button>
+  </header>
+
+  <!-- Main GBA Hardware Unit -->
+  <div class="gba-unit-frame">
+    <!-- Left Physical Controls (D-Pad + SELECT) -->
+    <aside class="gba-side-controls gba-side-left">
+      <button type="button" class="gba-shoulder-btn" (click)="selectStarter(selectedStarterIndex - 1)">
+        L
+      </button>
+
+      <div class="gba-dpad" role="group" aria-label="Directional Pad">
+        <button type="button" class="dpad-btn dpad-up" (click)="nextDialogueOrBoot()" title="Up">▲</button>
+        <button type="button" class="dpad-btn dpad-left" (click)="selectStarter(selectedStarterIndex - 1)" title="Previous Starter">◀</button>
+        <div class="dpad-center"></div>
+        <button type="button" class="dpad-btn dpad-right" (click)="selectStarter(selectedStarterIndex + 1)" title="Next Starter">▶</button>
+        <button type="button" class="dpad-btn dpad-down" (click)="nextDialogueOrBoot()" title="Down">▼</button>
+      </div>
+
+      <div class="gba-pill-btn-wrap">
+        <button type="button" class="gba-rubber-pill" (click)="nextDialogueOrBoot()">SELECT</button>
+        <span class="gba-pill-caption">DIALOGUE</span>
+      </div>
+    </aside>
+
+    <!-- Center 240x160 (3:2) GBA LCD Display -->
+    <main class="gba-lcd-bezel">
+      <div class="gba-lcd-screen" [class.screen-fade-out]="isLoading">
+        <!-- Top Scanline Header -->
+        <div class="birch-top-bar">
+          <span class="birch-title-pill">HOENN POKéDEX</span>
+          <span class="birch-location-tag">LITTLEROOT TOWN LAB</span>
+        </div>
+
+        <!-- Center Stage: Professor Birch + Hoenn Starter Preview -->
+        <div class="birch-stage">
+          <!-- Left: Professor Birch on Spotlight Platform -->
+          <div class="birch-character-slot">
+            <div class="birch-platform"></div>
+            <img
+              src="assets/emerald/birch.png"
+              alt="Professor Birch"
+              class="birch-sprite"
+            />
+            <span class="birch-name-plate">PROF. BIRCH</span>
+          </div>
+
+          <!-- Right: Interactive Hoenn Starter Preview Window -->
+          <div class="starter-preview-window">
+            <div class="starter-window-header">
+              <span>{{ currentStarter.hoennNo }} {{ currentStarter.name }}</span>
+              <span class="gba-type-badge" [ngClass]="'type-' + currentStarter.type.toLowerCase()">
+                {{ currentStarter.type }}
+              </span>
+            </div>
+
+            <div class="starter-sprite-stage" (click)="selectStarter(selectedStarterIndex + 1)">
+              <button
+                type="button"
+                class="starter-arrow"
+                (click)="$event.stopPropagation(); selectStarter(selectedStarterIndex - 1)"
+                aria-label="Previous Starter"
+              >◀</button>
+              <img
+                [src]="currentStarter.sprite"
+                [alt]="currentStarter.name"
+                class="starter-sprite"
+              />
+              <button
+                type="button"
+                class="starter-arrow"
+                (click)="$event.stopPropagation(); selectStarter(selectedStarterIndex + 1)"
+                aria-label="Next Starter"
+              >▶</button>
+            </div>
+
+            <div class="starter-category-bar">
+              {{ currentStarter.category }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Authentic Pokémon Emerald Dialogue Frame -->
+        <div class="emerald-dialogue-box" (click)="nextDialogueOrBoot()">
+          <div class="emerald-dialogue-inner">
+            <p class="emerald-dialogue-text">
+              {{ dialogues[dialogueStep] }}
+              <span class="emerald-dialogue-cursor">▼</span>
+            </p>
+            <div class="emerald-dialogue-actions">
+              <button
+                type="button"
+                class="emerald-boot-btn"
+                (click)="$event.stopPropagation(); goToDashboard()"
+              >
+                <span class="gba-key-dot">A</span> OPEN POKéDEX
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gba-bezel-logo">
+        <span class="logo-gba">GAME BOY</span>
+        <span class="logo-advance">ADVANCE</span>
+      </div>
+    </main>
+
+    <!-- Right Physical Controls (A / B + START) -->
+    <aside class="gba-side-controls gba-side-right">
+      <button type="button" class="gba-shoulder-btn" (click)="selectStarter(selectedStarterIndex + 1)">
+        R
+      </button>
+
+      <div class="gba-ab-cluster" role="group" aria-label="Action Buttons">
+        <div class="ab-btn-wrap ab-b">
+          <button type="button" class="gba-round-btn btn-b" (click)="nextDialogueOrBoot()">B</button>
+          <span class="ab-label">NEXT</span>
+        </div>
+        <div class="ab-btn-wrap ab-a">
+          <button type="button" class="gba-round-btn btn-a" (click)="goToDashboard()">A</button>
+          <span class="ab-label">OPEN</span>
+        </div>
+      </div>
+
+      <div class="gba-pill-btn-wrap">
+        <button type="button" class="gba-rubber-pill" (click)="goToDashboard()">START</button>
+        <span class="gba-pill-caption">BOOT DEX</span>
+      </div>
+    </aside>
+  </div>
 </div>

@@ -1,5 +1,160 @@
-/* You can add global styles to this file, and also import other style files */
-*{
-    margin: 0;
-    padding: 0;
+/* ==========================================================================
+   POKÉMON EMERALD POKÉDEX — AUTHENTIC GBA DESIGN SYSTEM (2004)
+   Native GBA Resolution Reference: 240 × 160 px (3:2 Aspect Ratio)
+   ========================================================================== */
+
+:root {
+  /* Hoenn Mode Scanline Palette (bg_hoenn.pal) */
+  --gba-hoenn-scan-light: #31d54a;
+  --gba-hoenn-scan-dark: #188320;
+  --gba-hoenn-wheel-ring: #000029;
+
+  /* National Mode Scanline Palette (bg_national.pal) */
+  --gba-national-scan-light: #7ba473;
+  --gba-national-scan-dark: #4a7341;
+  --gba-national-wheel-ring: #293941;
+
+  /* Search Results Scanline Palette (search_results_bg.pal) */
+  --gba-search-scan-light: #7b9420;
+  --gba-search-scan-dark: #295200;
+
+  /* List Panel & Frame Colors */
+  --gba-list-yellow: #eef639;
+  --gba-list-scroll-tan: #bd9c5a;
+  --gba-border-dark: #293941;
+  --gba-border-mid: #626273;
+  --gba-surface-white: #ffffff;
+  --gba-surface-gray-light: #dedede;
+  --gba-surface-gray-mid: #bdbdbd;
+  --gba-surface-gray-dark: #a4a4a4;
+
+  /* Top Action Bar & Interactive Pills */
+  --gba-topbar-navy: #29396a;
+  --gba-pill-blue: #b4cdf6;
+  --gba-pill-blue-border: #318bff;
+  --gba-pill-green-active: #31d54a;
+  --gba-pill-magenta: #ff00bd;
+  --gba-pokeball-red: #c52020;
+
+  /* Info Screen Description Box Side Borders */
+  --gba-gold-light: #ffee00;
+  --gba-gold-mid: #ffbd00;
+  --gba-gold-dark: #ff7300;
+
+  /* Search Menu Palette (search_menu.pal) */
+  --gba-search-orange: #ffac00;
+  --gba-search-orange-shadow: #832020;
+  --gba-search-lime: #9ce600;
+  --gba-search-lime-border: #397300;
+  --gba-search-red-focus: #ff2020;
+
+  /* GBA Console Hardware Shell (Pokémon Emerald Rayquaza Edition) */
+  --gba-shell-emerald: #116b49;
+  --gba-shell-emerald-dark: #09422c;
+  --gba-shell-emerald-highlight: #219669;
+  --gba-bezel-dark: #1c2226;
+  --gba-bezel-inner: #0e1214;
+
+  /* Pixel Typography */
+  --font-gba-title: 'Press Start 2P', monospace;
+  --font-gba-ui: 'Silkscreen', 'Press Start 2P', monospace;
+  --font-gba-narrow: 'VT323', 'Silkscreen', monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #081c14;
+  background-image:
+    radial-gradient(circle at 50% 20%, rgba(49, 213, 74, 0.12) 0%, transparent 60%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.25) 0px,
+      rgba(0, 0, 0, 0.25) 2px,
+      transparent 2px,
+      transparent 4px
+    );
+  color: #293941;
+  font-family: var(--font-gba-ui);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: never;
+  text-rendering: optimizeSpeed;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+img,
+canvas,
+svg {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+  -webkit-font-smoothing: none;
+}
+
+/* ==========================================================================
+   GENERATION III PIXEL TYPE BADGES (32×12 GBA Style)
+   ========================================================================== */
+.gba-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  height: 18px;
+  padding: 0 5px;
+  font-family: var(--font-gba-ui);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.3px;
+  color: #ffffff;
+  text-transform: uppercase;
+  text-shadow: 1px 1px 0px #293941, 1px 0px 0px #293941, 0px 1px 0px #293941;
+  border: 2px solid #293941;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.28);
+}
+
+.gba-type-badge.type-normal   { background-color: #a8a878; }
+.gba-type-badge.type-fire     { background-color: #f08030; }
+.gba-type-badge.type-water    { background-color: #6890f0; }
+.gba-type-badge.type-grass    { background-color: #78c850; }
+.gba-type-badge.type-electric { background-color: #f8d030; }
+.gba-type-badge.type-ice      { background-color: #98d8d8; }
+.gba-type-badge.type-fighting { background-color: #c03028; }
+.gba-type-badge.type-poison   { background-color: #a040a0; }
+.gba-type-badge.type-ground   { background-color: #e0c068; }
+.gba-type-badge.type-flying   { background-color: #a890f0; }
+.gba-type-badge.type-psychic  { background-color: #f85888; }
+.gba-type-badge.type-bug      { background-color: #a8b820; }
+.gba-type-badge.type-rock     { background-color: #b8a038; }
+.gba-type-badge.type-ghost    { background-color: #705898; }
+.gba-type-badge.type-dragon   { background-color: #7038f8; }
+.gba-type-badge.type-steel    { background-color: #b8b8d0; }
+.gba-type-badge.type-dark     { background-color: #705848; }
+.gba-type-badge.type-fairy    { background-color: #ee99ac; }
+
+/* Authentic GBA 16-Step Black Palette Fade Overlay */
+@keyframes gbaPaletteFade {
+  0%   { opacity: 1; }
+  25%  { opacity: 0.75; }
+  50%  { opacity: 0.5; }
+  75%  { opacity: 0.25; }
+  100% { opacity: 0; }
 }
